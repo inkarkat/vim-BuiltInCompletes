@@ -1,6 +1,7 @@
 " BuiltInCompletes.vim: Completion functions that emulate the built-in ones.
 "
 " DEPENDENCIES:
+"   - ingo/compat.vim autoload script
 "
 " Copyright: (C) 2015 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -14,7 +15,23 @@ function! BuiltInCompletes#LocalComplete( findstart, base )
     return s:Complete({'complete': '.'}, a:findstart, a:base)
 endfunction
 function! BuiltInCompletes#Complete( findstart, base )
-    return s:Complete({'complete': &complete}, a:findstart, a:base)
+    let l:matches = s:Complete({'complete': &complete}, a:findstart, a:base)
+
+    if ! a:findstart && ingo#option#Contains(&complete, 't')
+	let l:tagNames = ingo#compat#uniq(
+	\   map(
+	\       taglist('\V\^' . escape(a:base, '\')),
+	\       'v:val.name'
+	\   )
+	\)
+
+	let l:matches += map(
+	\   l:tagNames,
+	\   '{"word": v:val}'
+	\)
+    endif
+
+    return l:matches
 endfunction
 
 function! s:Complete( options, findstart, base )
