@@ -2,6 +2,7 @@
 "
 " DEPENDENCIES:
 "   - ingo/compat.vim autoload script
+"   - ingo/collections.vim autoload script
 "
 " Copyright: (C) 2015 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -10,6 +11,8 @@
 "
 " REVISION	DATE		REMARKS
 "	001	01-Jan-2015	file creation
+let s:save_cpo = &cpo
+set cpo&vim
 
 function! BuiltInCompletes#LocalComplete( findstart, base )
     return s:Complete({'complete': '.'}, a:findstart, a:base)
@@ -25,10 +28,18 @@ function! BuiltInCompletes#Complete( findstart, base )
 	\   )
 	\)
 
-	let l:matches += map(
-	\   l:tagNames,
-	\   '{"word": v:val}'
-	\)
+	if ! empty(l:tagNames)
+	    " Don't include tags that have been found already once again.
+	    let l:words = ingo#collections#ToDict(map(copy(l:matches), 'v:val.word'))
+
+	    let l:matches += map(
+	    \   filter(
+	    \       l:tagNames,
+	    \       '! has_key(l:words, v:val)'
+	    \   ),
+	    \   '{"word": v:val}'
+	    \)
+	endif
     endif
 
     return l:matches
@@ -50,4 +61,6 @@ function! s:Complete( options, findstart, base )
     endif
 endfunction
 
+let &cpo = s:save_cpo
+unlet s:save_cpo
 " vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
