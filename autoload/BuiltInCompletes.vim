@@ -1,7 +1,6 @@
 " BuiltInCompletes.vim: Completion functions that emulate the built-in ones.
 "
 " DEPENDENCIES:
-"   - ingo/compat.vim autoload script
 "   - ingo/collections.vim autoload script
 "
 " Copyright: (C) 2015 Ingo Karkat
@@ -10,6 +9,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"	003	03-Feb-2015	FIX: taglist() output is not guaranteed to be
+"				sorted; use ingo#collections#UniqueStable()
+"				instead of uniq().
 "	002	04-Jan-2015	Add BuiltInCompletes#TagComplete().
 "				Split off two separate ...Prev / ...Next
 "				functions to deliver the matches in the correct,
@@ -38,7 +40,7 @@ function! s:Complete( isBackward, findstart, base )
     let l:matches = s:CompleteViaHelper({'complete': &complete, 'backward_search': a:isBackward}, a:findstart, a:base)
 
     if ! a:findstart && ingo#option#Contains(&complete, 't')
-	let l:tagNames = ingo#compat#uniq(
+	let l:tagNames = ingo#collections#UniqueStable(
 	\   map(
 	\       taglist('\V\^' . escape(a:base, '\')),
 	\       'v:val.name'
@@ -87,7 +89,7 @@ function! BuiltInCompletes#TagComplete( findstart, base )
 	endif
 	return l:startCol - 1 " Return byte index, not column.
     else
-	let l:tagNames = ingo#compat#uniq(
+	let l:tagNames = ingo#collections#UniqueStable(
 	\   map(
 	\       taglist('\V\^' . escape(a:base, '\')),
 	\       'v:val.name'
