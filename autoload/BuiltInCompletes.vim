@@ -12,6 +12,7 @@
 "	003	03-Feb-2015	FIX: taglist() output is not guaranteed to be
 "				sorted; use ingo#collections#UniqueStable()
 "				instead of uniq().
+"				Factor out s:GetTagNames().
 "	002	04-Jan-2015	Add BuiltInCompletes#TagComplete().
 "				Split off two separate ...Prev / ...Next
 "				functions to deliver the matches in the correct,
@@ -20,32 +21,44 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
+function! s:CompleteViaHelper( options, findstart, base )
+    if a:findstart
+	" Locate the start of the keyword.
+	let l:startCol = searchpos('\k*\%#', 'bn', line('.'))[1]
+	if l:startCol == 0
+	    let l:startCol = col('.')
+	endif
+	return l:startCol - 1 " Return byte index, not column.
+    else
+	" Find matches starting with a:base.
+	let l:matches = []
+	call CompleteHelper#FindMatches( l:matches, '\V\<' . escape(a:base, '\') . '\k\+', a:options)
+	return l:matches
+    endif
+endfunction
+function! s:LocalComplete( isBackward, findstart, base )
+    return s:CompleteViaHelper({'complete': '.', 'backward_search': a:isBackward}, a:findstart, a:base)
+endfunction
 function! BuiltInCompletes#LocalCompleteNext( findstart, base )
     return s:LocalComplete(0, a:findstart, a:base)
 endfunction
 function! BuiltInCompletes#LocalCompletePrev( findstart, base )
     return s:LocalComplete(1, a:findstart, a:base)
 endfunction
-function! s:LocalComplete( isBackward, findstart, base )
-    return s:CompleteViaHelper({'complete': '.', 'backward_search': a:isBackward}, a:findstart, a:base)
-endfunction
 
-function! BuiltInCompletes#CompleteNext( findstart, base )
-    return s:Complete(0, a:findstart, a:base)
-endfunction
-function! BuiltInCompletes#CompletePrev( findstart, base )
-    return s:Complete(1, a:findstart, a:base)
+function! s:GetTagNames( base )
+    return ingo#collections#UniqueStable(
+	\  map(
+	\	taglist('\V\^' . escape(a:base, '\')),
+	\	'v:val.name'
+	\  )
+    \)
 endfunction
 function! s:Complete( isBackward, findstart, base )
     let l:matches = s:CompleteViaHelper({'complete': &complete, 'backward_search': a:isBackward}, a:findstart, a:base)
 
     if ! a:findstart && ingo#option#Contains(&complete, 't')
-	let l:tagNames = ingo#collections#UniqueStable(
-	\   map(
-	\       taglist('\V\^' . escape(a:base, '\')),
-	\       'v:val.name'
-	\   )
-	\)
+	let l:tagNames = s:GetTagNames(a:base)
 
 	if ! empty(l:tagNames)
 	    " Don't include tags that have been found already once again.
@@ -63,22 +76,13 @@ function! s:Complete( isBackward, findstart, base )
 
     return l:matches
 endfunction
-
-function! s:CompleteViaHelper( options, findstart, base )
-    if a:findstart
-	" Locate the start of the keyword.
-	let l:startCol = searchpos('\k*\%#', 'bn', line('.'))[1]
-	if l:startCol == 0
-	    let l:startCol = col('.')
-	endif
-	return l:startCol - 1 " Return byte index, not column.
-    else
-	" Find matches starting with a:base.
-	let l:matches = []
-	call CompleteHelper#FindMatches( l:matches, '\V\<' . escape(a:base, '\') . '\k\+', a:options)
-	return l:matches
-    endif
+function! BuiltInCompletes#CompleteNext( findstart, base )
+    return s:Complete(0, a:findstart, a:base)
 endfunction
+function! BuiltInCompletes#CompletePrev( findstart, base )
+    return s:Complete(1, a:findstart, a:base)
+endfunction
+
 
 function! BuiltInCompletes#TagComplete( findstart, base )
     if a:findstart
@@ -89,15 +93,8 @@ function! BuiltInCompletes#TagComplete( findstart, base )
 	endif
 	return l:startCol - 1 " Return byte index, not column.
     else
-	let l:tagNames = ingo#collections#UniqueStable(
-	\   map(
-	\       taglist('\V\^' . escape(a:base, '\')),
-	\       'v:val.name'
-	\   )
-	\)
-
 	let l:matches = map(
-	\   l:tagNames,
+	\   s:GetTagNames(a:base),
 	\   '{"word": v:val}'
 	\)
     endif
